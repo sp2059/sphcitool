@@ -3,8 +3,8 @@
 # Compiler Flag
 CC=gcc
 # Object link
-TARGET  = hcitooladv
-OBJ_LIB = hcitooladv.o lib/bluetooth.o lib/hci.o
+TARGET  = sphcitool
+OBJ_LIB = sphcitool.o lib/bluetooth.o lib/hci.o
 EXT_LIB = 
 # Compiler
 all:$(OBJ_LIB)
