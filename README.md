@@ -1,5 +1,5 @@
-### BLE Advertising monitor
-Based hcitool from BlueZ - Bluetooth protocol stack for Linux
+### BLE Advertising monitor for ATC Thermometers
+Based on https://github.com/pvvx/hcitooladv, originally from BlueZ - Bluetooth protocol stack for Linux
 ---
 
 ### Usage:
