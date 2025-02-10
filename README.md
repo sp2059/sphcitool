@@ -5,7 +5,7 @@ Based on https://github.com/pvvx/hcitooladv, originally from BlueZ - Bluetooth p
 ### Usage:
 
 ```
-hcitooladv lescan --passive --duplicates --advanced
+hcitooladv lescan --passive --duplicates --decode
 ```
 
 ### Build:
@@ -14,7 +14,9 @@ hcitooladv lescan --passive --duplicates --advanced
 make
 ```
 
-### String Format:
+### Output Format:
+
+--advanced output:
 
 "A4:C1:38:21:87:88-0201060f1695fe30585b05c988872138c1a408dd\n"
 
@@ -22,6 +24,16 @@ make
 | :----------: | -------------------------------------------- | ---- |
 | A4:C1:38:21:87:88 | 0201060f1695fe30585b05c988872138c1a408 |  dd  |
 
+--decode 
 
-
+A4:C1:38:99:17:D1-02010610161a18a4c1389917d100cd391e096f48c4
+                                      ^     ^   ^ ^ ^   ^ ^
+       +------------------------------+     |   | | |   | |
+       |    +-------------------------------+   | | |   | |
+       |    |       +---------------------------+ | |   | |
+       |    |       |       +---------------------+ |   | |
+       |    |       |       |    +------------------+   | |
+       |    |       |       |    |      +---------------+ |
+    vvvvvv vvvv     vv      vv  vvvv    vv      vvv-------+
+ATC_9917D1 20.5C RH:57% bat:30% 2415mV #72 rssi:196
 

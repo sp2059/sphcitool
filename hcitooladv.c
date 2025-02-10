@@ -2422,7 +2422,7 @@ failed:
 	snprintf(buf, buf_len, "(unknown)");
 }
 
-static int print_advertising_devices(int dd, uint8_t filter_type, uint8_t adv_flg)
+static int print_advertising_devices(int dd, uint8_t filter_type, uint8_t adv_flg, uint8_t atc_flg)
 {
 	unsigned char buf[HCI_MAX_EVENT_SIZE], *ptr;
 	struct hci_filter nf, of;
@@ -2449,6 +2449,9 @@ static int print_advertising_devices(int dd, uint8_t filter_type, uint8_t adv_fl
 	sa.sa_flags = SA_NOCLDSTOP;
 	sa.sa_handler = sigint_handler;
 	sigaction(SIGINT, &sa, NULL);
+
+	// If neither 'advanced' nor 'decode' requested, just list names of scanned devices...
+	uint8_t just_name = !(adv_flg || atc_flg);
 
 	while (1) {
 		evt_le_meta_event *meta;
@@ -2480,12 +2483,37 @@ static int print_advertising_devices(int dd, uint8_t filter_type, uint8_t adv_fl
 		if (check_report_filter(filter_type, info)) {
 
 			ba2str(&info->bdaddr, addr);
-			if(adv_flg) {
+			if (adv_flg) {
 
 				hex2str(adv, sizeof(adv), info->data, info->length + 1); // +rssi
 				printf("%s-%s\n", addr, adv);
 
-			} else {
+			}
+			if (atc_flg) {
+
+				/* Decode advert strings from ATC Thermometers
+				 * Eg.: 0201061016 1a18 a4c138625379 00b2371c095cc4c3 
+				 *                 5 6  7            13 
+				 * A4:C1:38:99:17:D1-02010610161a18a4c1389917d100cd391e096f48c4
+				 *     ATC_9917D1 20.5C RH:57% bat:30% 2415mV #72 rssi:196
+				 */
+				if (info->length == 20 && info->data[5] == 0x1a && info->data[6] == 0x18) {
+					/* temperature is in 10ths of a degree... */
+					int temp10 = info->data[13] * 256 + info->data[14];
+					if (temp10 > 0x7fff) temp10 -= 0x10000;
+					int temp_int = temp10 / 10;
+					int temp_fract = temp10 % 10;
+					int humidity = info->data[15];
+					int battery_pc = info->data[16];
+					int battery_mV = info->data[17] * 256 + info->data[18];
+					int sequence_id = info->data[19];
+					int rssi = info->data[20];
+
+					printf("ATC_%02X%02X%02X %d.%dC RH:%d%% bat:%d%% %dmV #%d rssi:%d\n", info->data[10], info->data[11], info->data[12], temp_int, temp_fract, humidity, battery_pc, battery_mV, sequence_id, rssi);
+				}
+
+			}
+		       	if (just_name)	{
 				memset(adv, 0, sizeof(adv));
 
 				eir_parse_name(info->data, info->length,
@@ -2512,6 +2540,7 @@ static struct option lescan_options[] = {
 	{ "whitelist",	0, 0, 'w' },
 	{ "discovery",	1, 0, 'd' },
 	{ "advanced",	0, 0, 'a' },
+	{ "decode",	0, 0, 'E' },
 	{ "duplicates",	0, 0, 'D' },
 	{ 0, 0, 0, 0 }
 };
@@ -2524,6 +2553,7 @@ static const char *lescan_help =
 	"\tlescan [--discovery=g|l] enable general or limited discovery"
 		"procedure\n"
 	"\tlescan [--advanced] show package dump in hex\n"
+	"\tlescan [--decode] decode data from some recognised sensors\n"
 	"\tlescan [--duplicates] don't filter duplicates\n";
 
 static void cmd_lescan(int dev_id, int argc, char **argv)
@@ -2537,11 +2567,16 @@ static void cmd_lescan(int dev_id, int argc, char **argv)
 	uint16_t window = htobs(0x0010);
 	uint8_t filter_dup = 0x01;
 	uint8_t adv_flg = 0;
+	uint8_t atc_flg = 0;
 
 	for_each_opt(opt, lescan_options, NULL) {
 		switch (opt) {
 		case 'a':
 			adv_flg = 1;
+			filter_dup = 0x00;
+			break;
+		case 'E':
+			atc_flg = 1;
 			filter_dup = 0x00;
 			break;
 		case 's':
@@ -2600,7 +2635,7 @@ static void cmd_lescan(int dev_id, int argc, char **argv)
 
 	printf("LE Scan ...\n");
 
-	err = print_advertising_devices(dd, filter_type, adv_flg);
+	err = print_advertising_devices(dd, filter_type, adv_flg, atc_flg);
 	if (err < 0) {
 		perror("Could not receive advertising events");
 		exit(1);
